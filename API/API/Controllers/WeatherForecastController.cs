@@ -23,13 +23,24 @@ namespace API.Controllers
         [HttpGet(Name = "GetWeatherForecast")]
         public async Task<IEnumerable<WeatherForecast>> Get()
         {
-            var logClient = new AmazonCloudWatchLogsClient("awsAccessKeyId"
-                                                            , "awsSecretAccessKey"
-                                                            ,Amazon.RegionEndpoint.USEast1);
+            // nesse exemplo estou usando o profile instalado localmente
+            var logClient = new AmazonCloudWatchLogsClient();
             var logGroupName = "/aws/weather-forecast-app";
             var logStreamName = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
 
-            await logClient.CreateLogGroupAsync(new CreateLogGroupRequest(logGroupName));
+            var existing = await logClient
+                    .DescribeLogGroupsAsync(new DescribeLogGroupsRequest()
+                    {
+                        LogGroupNamePrefix = logGroupName
+                    });
+
+            var logGroupExists = existing.LogGroups.Any(l => l.LogGroupName == logGroupName);
+
+            if (!logGroupExists)
+            {
+                await logClient.CreateLogGroupAsync(new CreateLogGroupRequest(logGroupName));
+            }
+
             await logClient.CreateLogStreamAsync(new CreateLogStreamRequest(logGroupName, logStreamName));
             await logClient.PutLogEventsAsync(new PutLogEventsRequest()
             {
